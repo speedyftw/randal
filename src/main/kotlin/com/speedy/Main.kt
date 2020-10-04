@@ -128,13 +128,14 @@ suspend fun main() {
                         return@Command
                     }
                     val guildId = guildId ?: return@Command
-                    val currGlue = glue[guildId] ?: mutableListOf()
+                    val currGlue = glue[guildId] ?: ArrayList()
                     val newUserIdsToGlue = usersMentioned.map { it.id }
                     // clear out any existing glue for these users
                     newUserIdsToGlue.forEach { newUserId ->
                         currGlue.removeIf { existingGlue -> existingGlue.any { it == newUserId } }
                     }
                     currGlue.add(newUserIdsToGlue)
+                    glue[guildId] = currGlue
 
                     reply(currGlueStateString(currGlue))
                     delete()
@@ -146,7 +147,8 @@ suspend fun main() {
                     delete()
                 },
                 Command("whosglued") {
-                    val currGlue = guildId?.let { glue[it] } ?: return@Command
+                    val guildId = guildId ?: return@Command
+                    val currGlue = glue[guildId] ?: ArrayList()
                     reply(currGlueStateString(currGlue))
                     delete()
                 },
@@ -165,15 +167,15 @@ fun randomizedTeamString(userIds: List<String>, teamSize: Int, glueState: List<L
     val userIdsToPlace = userIds.toMutableSet()
     val numTeams = ceil(userIds.size.toDouble() / teamSize).toInt()
     val teams = ArrayList<MutableList<String>>(numTeams).apply {
-        repeat(numTeams) { add(mutableListOf()) }
+        repeat(numTeams) { add(ArrayList()) }
     }
 
     // first, add the glued users to teams
     glueState.forEach { group ->
         val activeGroupMembers = group.filter { it in userIdsToPlace }
-        val eligibleTeams = teams.filter { teamSize - it.size < activeGroupMembers.size }
+        val eligibleTeams = teams.filter { teamSize - it.size <= activeGroupMembers.size }
         val selectedTeam = if(eligibleTeams.size > 1) {
-            eligibleTeams[nextInt(eligibleTeams.size - 1)]
+            eligibleTeams[nextInt(eligibleTeams.size)]
         } else eligibleTeams[0]
         selectedTeam.addAll(activeGroupMembers)
         userIdsToPlace.removeAll(activeGroupMembers)
@@ -182,7 +184,7 @@ fun randomizedTeamString(userIds: List<String>, teamSize: Int, glueState: List<L
     userIdsToPlace.forEach { user ->
         val eligibleTeams = teams.filter { teamSize - it.size > 0 }
         val selectedTeam = if(eligibleTeams.size > 1) {
-            eligibleTeams[nextInt(eligibleTeams.size - 1)]
+            eligibleTeams[nextInt(eligibleTeams.size)]
         } else eligibleTeams[0]
         selectedTeam.add(user)
     }
